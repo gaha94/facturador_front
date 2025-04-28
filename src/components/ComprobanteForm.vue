@@ -1,14 +1,15 @@
 <template>
+  <div class="form-background">
   <div class="container my-5">
-    <div class="card shadow">
+    <div class="card shadow P-4">
       <div class="card-header text-center">
-        <h3>SPLANA</h3>
+        <img src="/public/vite.svg" alt="Splanar" class="img-fluid" width="200" />
       </div>
       <div class="card-body">
         <form @submit.prevent="generarPDF">
           <div class="row mb-3">
-            <label class="col-sm-4 col-form-label">Tipo de comprobante:</label>
-            <div class="col-sm-8">
+            <label class="col-12 col-sm-4 col-form-label text-start">Tipo de comprobante:</label>
+            <div class="col-12 col-sm-8">
               <select v-model="form.tipoComprobante" class="form-control input-red" required @change="ajustarSerie">
                 <option value="01">Factura Electrónica</option>
                 <option value="03">Boleta de Venta Electrónica</option>
@@ -18,8 +19,8 @@
             </div>
           </div>
           <div class="row mb-3">
-            <label class="col-sm-4 col-form-label">Serie:</label>
-            <div class="col-sm-8">
+            <label class="col-12 col-sm-4 col-form-label text-start">Serie:</label>
+            <div class="col-12 col-sm-8">
               <input
                 v-model="form.serie"
                 type="text"
@@ -32,8 +33,8 @@
             </div>
           </div>
           <div class="row mb-3">
-            <label class="col-sm-4 col-form-label">Número:</label>
-            <div class="col-sm-8">
+            <label class="col-12 col-sm-4 col-form-label text-start">Número:</label>
+            <div class="col-12 col-sm-8">
               <input
                 v-model="form.numero"
                 type="number"
@@ -46,8 +47,8 @@
             </div>
           </div>
           <div class="row mb-3 align-items-center">
-            <label class="col-sm-4 col-form-label">Fecha de emisión:</label>
-            <div class="col-sm-8">
+            <label class="col-12 col-sm-4 col-form-label text-start">Fecha de emisión:</label>
+            <div class="col-12 col-sm-8">
               <div class="input_span input-group">
                 <input
                   ref="fechaInput"
@@ -63,8 +64,8 @@
             </div>
           </div>
           <div class="row mb-3">
-            <label class="col-sm-4 col-form-label">RUC / DNI:</label>
-            <div class="col-sm-8">
+            <label class="col-12 col-sm-4 col-form-label text-start">RUC / DNI:</label>
+            <div class="col-12 col-sm-8">
               <input
                 v-model="form.ruc"
                 type="text"
@@ -77,17 +78,17 @@
             </div>
           </div>
           <div class="row mb-3">
-            <label class="col-sm-4 col-form-label">Tipo de moneda:</label>
-            <div class="col-sm-8">
-              <select v-model="form.moneda" class="form-control select-red" required>
+            <label class="col-12 col-sm-4 col-form-label text-start">Tipo de moneda:</label>
+            <div class="col-12 col-sm-8">
+              <select v-model="form.moneda" class="form-control input-red" required>
                 <option value="PEN">PEN</option>
                 <option value="USD">USD</option>
               </select>
             </div>
           </div>
           <div class="row mb-4">
-            <label class="col-sm-4 col-form-label">Importe total:</label>
-            <div class="col-sm-8">
+            <label class="col-12 col-sm-4 col-form-label text-start">Importe total:</label>
+            <div class="col-12 col-sm-8">
               <input
                 v-model="form.importe"
                 type="number"
@@ -101,7 +102,14 @@
               <small v-if="errores.importe" class="text-danger">{{ errores.importe }}</small>
             </div>
           </div>
-          <button type="submit" class="btn btn-danger w-100">Generar PDF</button>
+          <button
+            type="submit"   
+            class="btn btn-danger w-100"
+            :disabled="loading"
+          >
+            <span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span v-else>Generar PDF</span>
+          </button>
         </form>
       </div>
       <div class="card-footer text-muted text-center ">
@@ -109,10 +117,12 @@
       </div>
     </div>
   </div>
+</div>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue'
+import Swal from 'sweetalert2'
 
 const form = reactive({
   tipoComprobante: '01',
@@ -129,6 +139,10 @@ const errores = reactive({
   ruc: '',
   importe: ''
 })
+
+const loading = ref(false)
+const success = ref(false)
+
 
 const validarNumero = () => {
   if (form.numero === '' || form.numero <= 0) {
@@ -194,28 +208,93 @@ const generarPDF = async () => {
   validarImporte()
 
   if (errores.numero || errores.ruc || errores.importe) {
-    alert('Corrige los errores antes de continuar.')
+    Swal.fire({
+      icon: 'error',
+      title: 'Corrige los errores antes de continuar',
+      text: 'Revisa los campos en rojo'
+    })
     return
   }
 
-  const url = `http://163.123.180.94:3000/api/comprobantes/${form.tipoComprobante}/${form.serie}/${form.numero}?fecha=${form.fecha}&ruc=${form.ruc}&moneda=${form.moneda}&importe=${form.importe}`
+   const url = `http://163.123.180.94:3000/api/comprobantes/${form.tipoComprobante}/${form.serie}/${form.numero}?fecha=${form.fecha}&ruc=${form.ruc}&moneda=${form.moneda}&importe=${form.importe}`
 
   try {
+    // Mostrar alerta de cargando
+    Swal.fire({
+      title: 'Generando PDF...',
+      text: 'Por favor espera unos segundos.',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading()
+      }
+    })
+
     const res = await fetch(url)
 
     if (!res.ok) throw new Error('Error al generar comprobante')
 
     const blob = await res.blob()
     const pdfUrl = window.URL.createObjectURL(blob)
-    window.open(pdfUrl, '_blank')
+
+    // Cerrar loading
+    Swal.close()
+
+    // Mostrar éxito y esperar confirmación
+    const result = await Swal.fire({
+      icon: 'success',
+      title: '¡PDF generado!',
+      text: 'Se abrirá en una nueva pestaña.',
+      confirmButtonText: 'Aceptar'
+    })
+
+    // Cuando el usuario haga clic en "Aceptar"
+    if (result.isConfirmed) {
+      // Abrir el PDF
+      window.open(pdfUrl, '_blank')
+
+      // 🔥 Limpiar el formulario
+      form.tipoComprobante = '01'
+      form.serie = ''
+      form.numero = ''
+      form.fecha = ''
+      form.ruc = ''
+      form.moneda = 'PEN'
+      form.importe = ''
+    }
   } catch (error) {
-    alert('Ocurrió un error: ' + error.message)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.message || 'Ocurrió un error inesperado'
+    })
   }
 }
 
 </script>
 
 <style scoped>
+
+.form-background {
+  min-height: 100vh; /* Ocupar toda la pantalla */
+  background-image: url('/public/images/bg1.webp'); /* tu imagen */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.card {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+
+
 /* Chrome, Safari, Edge, Opera */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
